@@ -1,0 +1,4 @@
+import {createUser,getAllUsers,updateUserRoleStatus} from '../services/userService.js';
+export const createUserHandler=async(req,res,next)=>{try{const {name,email,password,role,status}=req.body; if(!name||!email||!password)return next({status:400,message:'name,email,password required'});const user=await createUser({name,email,password,role,status});res.status(201).json(user);}catch(e){next(e);}};
+export const getUsersHandler=async(req,res,next)=>{try{const users=await getAllUsers();res.json(users);}catch(e){next(e);}};
+export const patchUserHandler=async(req,res,next)=>{try{const {id}=req.params;const {role,status}=req.body; if(!role&&!status)return next({status:400,message:'At least one of role or status is required'});const user=await updateUserRoleStatus(id,{role,status});res.json(user);}catch(e){next(e);}};
