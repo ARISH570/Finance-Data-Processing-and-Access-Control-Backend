@@ -1,0 +1,23 @@
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import dotenv from 'dotenv';
+import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import recordRoutes from './routes/recordRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
+import { notFound, errorHandler } from './middleware/errorMiddleware.js';
+
+dotenv.config();
+const app=express();
+app.use(express.json());
+app.use(cors());
+app.use(morgan('dev'));
+app.get('/',(req,res)=>res.json({message:'Finance Data Processing and Access Control System'}));
+app.use('/api/auth',authRoutes);
+app.use('/api/users',userRoutes);
+app.use('/api/records',recordRoutes);
+app.use('/api/dashboard',dashboardRoutes);
+app.use(notFound);
+app.use(errorHandler);
+export default app;
