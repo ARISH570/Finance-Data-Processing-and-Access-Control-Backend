@@ -1,133 +1,128 @@
-# Zorvyn Backend API & RBAC Specification
+ZORVYN BACKEND API AND RBAC SPECIFICATION
 
-## 1. Project Overview
+1.  Project Overview
 
-- **Backend**: Node.js + Express + MongoDB (Mongoose)
-- **Structure**:
-  - `src/models`: Mongo schemas (`User`, `Record`)
-  - `src/services`: business logic + DB operations
-  - `src/controllers`: request handlers
-  - `src/routes`: HTTP routes
-  - `src/middleware`: auth, authorization, error handling
-- **Authentication**: JWT (`Authorization: Bearer <token>`)
-- **Error handling**: `notFound` + `errorHandler` middleware
+Backend: Node.js + Express + MongoDB (Mongoose)
 
-## 2. Domain Model
+Structure: 
+- src/models: Mongo schemas (User, Record)
+- src/services:business logic and database operations
+- src/controllers: requesthandlers 
+- src/routes: HTTP routes
+- src/middleware: authentication, authorization, error handling
 
-### User
-- Fields: `name`, `email`, `password`, `role`, `status`, timestamps
-- `role` enum: `viewer`, `analyst`, `admin` (default `viewer`)
-- `status` enum: `active`, `inactive` (default `active`)
-- Password hashed before save
-- `toJSON` removes password
+Authentication: JWT using Authorization header (Bearer token)
 
-### Record
-- Typical fields: `type`, `amount`, `category`, `date`, `isDeleted`, etc.
+Error Handling: centralized middleware (notFound and errorHandler)
 
-## 3. Role-Based Access Control (RBAC)
+2.  Domain Model
 
-### Roles
-- **Viewer**: read-only access to dashboard and records
-- **Analyst**: read/write records + dashboard read
-- **Admin**: full access including user management
+User - Fields: name, email, password, role, status, timestamps 
+- Role values: viewer, analyst, admin (default: viewer)
+- Status values: active, inactive (default: active)
+- Password is hashed before saving - Password is excluded from API responses
 
-### Middleware
-- `authenticate`:
-  - verify JWT
-  - load user with `findUserById`
-  - fail if missing/invalid token or inactive
-- `authorize(...roles)`:
-  - checks `req.user.role` in allowed list
-  - returns 403 if unauthorized
+Record
+- Fields: type, amount, category, date, note, isDeleted,createdBy, timestamps
 
-## 4. Routes
+3.  Role-Based Access Control (RBAC)
 
-### Auth (`/api/auth`)
-- `POST /signup` - register user
-  - body: `{name,email,password,role?}`
-- `POST /login` - login
-  - body: `{email,password}`
+Viewer: read-only access
+Analyst: read + write records
+Admin: full access
 
-### Users (`/api/users`) (Protected)
-- `POST /` (admin only): create user with role/status
-- `GET /` (viewer/analyst/admin): list users (no password)
-- `PATCH /:id` (admin only): update user role/status
+Middleware: 
+- authenticate: verifies JWT and user
+- authorize: checks role permissions
 
-### Records (`/api/records`) (Protected)
-- `GET /` (viewer/analyst/admin)
-- `POST /` (analyst/admin)
-- `PATCH /:id` (analyst/admin)
-- `DELETE /:id` (analyst/admin)
+4. API Routes
 
-### Dashboard (`/api/dashboard`) (Protected)
-- `GET /` (viewer/analyst/admin): all-summary endpoint
-- `GET /total-income`, `/total-expenses`, `/net-balance`, `/category-totals`, `/monthly-trends`
+Auth (/api/auth)
+- POST /signup
+- POST /login
 
-## 5. Dashboard Calculation (MongoDB Aggregations)
+Users (/api/users) (Authenticated)
+- POST / (admin only): create user
+- GET / (all roles): list users
+- PATCH /:id (admin only): update user role/status
 
-Service methods in `src/services/dashboardService.js`:
-- `totalIncome` / `totalExpenses`: `$match` by `type`, `$group` sum
-- `netBalance`: income - expense
-- `categoryTotals`: `$group` by category + sort
-- `monthlyTrends`: aggregated year/month/type breakdown
+Records (/api/records) (Authenticated)
+- GET / (all roles): view records
+- POST / (admin, analyst): create record
+- PATCH /:id (admin, analyst): update record
+- DELETE /:id (admin, analyst): delete record
+Dashboard (/api/dashboard) (Authenticated)
+- GET /
+- GET /total-income
+- GET /total-expenses
+- GET /net-balance
+- GET /category-totals
+- GET /monthly-trends
 
-## 6. User Management
+5. Dashboard Calculations
 
-Service methods in `src/services/userService.js`:
-- `createUser`: no duplicate emails
-- `getAllUsers`: returns users excluding password
-- `updateUserRoleStatus`: find by id + change role/status
-- `findUserByEmail`, `findUserById`
+Uses MongoDB aggregation:
+- total income
+- total expenses
+- net balance
+- category totals
+- monthly trends
 
-## 7. Validation & Error Handling
+6. Validation and Error Handling
 
-- 400 for missing parameters in controllers
-- 401/403 for auth/authorization failures
-- 404 for missing user when updating
-- centralized error middleware returns JSON with status/message (and stack in dev)
+- 400 Bad Request (validation missing fields)
+- 401 Unauthorized (token missing/invalid/inactive user)
+- 403 Forbidden (role not allowed)
+- 404 Not Found (resource not found)
 
-## 8. Postman RBAC Test Matrix
+7. RBAC Capability Matrix
 
-1. Create admin, analyst, viewer accounts.
-2. Login all, store tokens.
-3. Test role matrix:
-   - Viewer: dashboard read yes; records create/update/delete no; user create/update no.
-   - Analyst: dashboard read yes; record create/update/delete yes; user create/update no.
-   - Admin: all yes.
+| Role    | Dashboard | Records (Read) | Records (Write) | User Management |
+| ------- | --------- | -------------- | --------------- | --------------- |
+| Viewer  | Yes       | Yes            | No              | No              |
+| Analyst | Yes       | Yes            | Yes             | No              |
+| Admin   | Yes       | Yes            | Yes             | Yes             |
 
-| Endpoint | Viewer | Analyst | Admin |
-| ---- | ---- | ---- | ---- |
-| GET /api/dashboard | ✅ | ✅ | ✅ |
-| GET /api/records | ✅ | ✅ | ✅ |
-| POST /api/records | ❌ | ✅ | ✅ |
-| PATCH /api/records/:id | ❌ | ✅ | ✅ |
-| DELETE /api/records/:id | ❌ | ✅ | ✅ |
-| GET /api/users | ✅ | ✅ | ✅ |
-| POST /api/users | ❌ | ❌ | ✅ |
-| PATCH /api/users/:id | ❌ | ❌ | ✅ |
+Note:
+- Viewer has strictly read-only access.
+- Analyst can manage financial records but cannot manage users.
+- Admin has full system control including user and role management.
 
-## 9. Inactive user behavior
-- User status set to `inactive` rejects login and all protected endpoints.
+8. How to Run
 
-## 10. Notes for examiner
-- Architecture is clean and modular.
-- RBAC is explicit via route decorators + middleware.
-- Aggregations are correct and show analytics value.
-- Error handler is centralized and consistent.
+1. npm install
+2. configure .env with MONGO_URI, JWT_SECRET, PORT
+3. npm run dev
 
----
+9. Testing Flow (Postman)
 
-### How to run
-1. `npm install`
-2. Set `.env`: `MONGO_URI`, `JWT_SECRET`, `PORT`
-3. `npm run dev`
+- Sign up admin and login for admin token.
+- Create analyst and viewer using admin token.
+- Login as each user and store tokens.
+- Exercise routes and verify responses as per RBAC matrix.
 
-### Quick verification
-1. `POST /api/auth/signup` admin.
-2. `POST /api/auth/login` admin -> JWT.
-3. `POST /api/users` with admin JWT -> create analyst/viewer.
-4. Use each role token to validate RBAC matrix.
+10. Notes
+
+- RBAC is enforced at route layer via middleware.
+- Dashboard is produced with aggregation queries in services.
+- Inactive users are blocked from login and route access.
+
+
+11. Deployment
+
+This backend is deployed using Render.  
+Environment variables used:
+- MONGO_URI  
+- JWT_SECRET  
+- PORT  
 
 ---
 
-> This file is an audit-friendly single source of truth for your RBAC project, and it is ready to hand to the examiner.
+12. Health Check
+
+GET https://finance-data-processing-and-access-se7a.onrender.com/
+
+Response:
+{
+  "message": "Finance Data Processing and Access Control System"
+}

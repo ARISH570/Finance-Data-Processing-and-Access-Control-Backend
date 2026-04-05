@@ -2,9 +2,11 @@ ZORVYN Backend API Documentation
 
 Overview
 
-This API provides a financial record management system with role-based access control (RBAC). It supports user authentication, record management, and dashboard analytics.
+This API provides a financial record management system with role-based access control (RBAC). It supports user authentication, record management, and dashboard analytics.This API is deployed and publicly accessible via the production URL.
 
-Base URL: `http://localhost:3000/api`
+Base URLs:
+- Local: `http://localhost:5000/api`
+- Production (Render): `https://finance-data-processing-and-access-se7a.onrender.com/api`
 
 Authentication: JWT Bearer token required for protected routes
 
